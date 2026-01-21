@@ -1,0 +1,27 @@
+Metadata-Version: 2.4
+Name: nexusai-rag
+Version: 0.1.0
+Summary: NexusAI hybrid RAG service (pgvector + BM25 + rerank)
+Requires-Python: >=3.11
+Requires-Dist: fastapi>=0.115.0
+Requires-Dist: uvicorn[standard]>=0.30.6
+Requires-Dist: pydantic>=2.9.2
+Requires-Dist: pydantic-settings>=2.5.2
+Requires-Dist: httpx>=0.27.2
+Requires-Dist: asyncpg>=0.29.0
+Requires-Dist: psycopg[binary]>=3.2.3
+Requires-Dist: sqlalchemy[asyncio]>=2.0.35
+Requires-Dist: pgvector>=0.3.4
+Requires-Dist: tiktoken>=0.8.0
+Requires-Dist: openai>=1.50.0
+Requires-Dist: anthropic>=0.34.2
+Requires-Dist: google-generativeai>=0.8.2
+Requires-Dist: prometheus-client>=0.21.0
+Requires-Dist: structlog>=24.4.0
+Requires-Dist: numpy>=2.1.2
+Requires-Dist: rank-bm25>=0.2.2
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3.3; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.24.0; extra == "dev"
+Requires-Dist: ruff>=0.6.9; extra == "dev"
+Requires-Dist: mypy>=1.11.2; extra == "dev"

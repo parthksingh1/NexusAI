@@ -1,0 +1,161 @@
+version: "3.9"
+
+networks:
+  nexus:
+    driver: bridge
+
+volumes:
+  pg_data:
+  redis_data:
+  neo4j_data:
+  neo4j_logs:
+  clickhouse_data:
+  kafka_data:
+
+services:
+  # ─── Postgres with pgvector ─────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: nexus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus
+      POSTGRES_DB: nexusai
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus -d nexusai"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [nexus]
+
+  # ─── Redis (cache + pubsub + rate-limits) ───────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [nexus]
+
+  # ─── Kafka (KRaft mode, no Zookeeper) ───────────────────────
+  kafka:
+    image: public.ecr.aws/bitnami/kafka:3.7.1-debian-12-r1
+    container_name: nexus-kafka
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_CFG_NODE_ID: "1"
+      KAFKA_CFG_PROCESS_ROLES: "controller,broker"
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - kafka_data:/bitnami/kafka
+    networks: [nexus]
+
+  # ─── Neo4j (knowledge graph memory) ─────────────────────────
+  neo4j:
+    image: neo4j:5.23-community
+    container_name: nexus-neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: "neo4j/nexuspass"
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - ./infra/neo4j/init.cypher:/init.cypher:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -O /dev/null -q http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: [nexus]
+
+  # ─── ClickHouse (metrics + time-series) ─────────────────────
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: nexus-clickhouse
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./infra/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [nexus]
+
+  # ─── Prometheus (metrics scraping) ──────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: nexus-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks: [nexus]
+
+  # ─── Grafana (dashboards) ───────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: nexus-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    networks: [nexus]
+
+  # ─── OpenTelemetry collector ────────────────────────────────
+  otel:
+    image: otel/opentelemetry-collector-contrib:0.108.0
+    container_name: nexus-otel
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./infra/otel/collector.yaml:/etc/otel-collector.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    networks: [nexus]
+
+  # ─── Jaeger UI for traces ───────────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: nexus-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+    networks: [nexus]

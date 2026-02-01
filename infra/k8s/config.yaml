@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexus-config
+  namespace: nexusai
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  KAFKA_BROKERS: "kafka:9092"
+  REDIS_URL: "redis://redis:6379"
+  NEO4J_URI: "bolt://neo4j:7687"
+  CLICKHOUSE_URL: "http://clickhouse:8123"
+  RAG_URL: "http://rag:5000"
+  SANDBOX_URL: "http://sandbox:4100"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nexus-secrets
+  namespace: nexusai
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://nexus:REPLACE_ME@postgres:5432/nexusai"
+  JWT_SECRET: "REPLACE_ME_IN_SECRET_MANAGER"
+  ANTHROPIC_API_KEY: ""
+  OPENAI_API_KEY: ""
+  GOOGLE_API_KEY: ""
+  STRIPE_SECRET_KEY: ""
+  STRIPE_WEBHOOK_SECRET: ""

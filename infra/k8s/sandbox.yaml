@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox
+  namespace: nexusai
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: sandbox } }
+  template:
+    metadata:
+      labels: { app: sandbox }
+    spec:
+      # Sandbox needs Docker socket OR spawns runners via gVisor RuntimeClass.
+      # In GKE Autopilot, prefer GKE Sandbox (gVisor) via RuntimeClass below.
+      runtimeClassName: gvisor
+      containers:
+        - name: sandbox
+          image: ghcr.io/YOUR_ORG/nexusai-sandbox:latest
+          ports: [{ containerPort: 4100 }]
+          env:
+            - name: SANDBOX_RUNTIME
+              value: "runsc"
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits:   { cpu: "2",    memory: "2Gi" }
+          volumeMounts:
+            - { name: dockersock, mountPath: /var/run/docker.sock }
+      volumes:
+        - name: dockersock
+          hostPath: { path: /var/run/docker.sock, type: Socket }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: sandbox, namespace: nexusai }
+spec:
+  selector: { app: sandbox }
+  ports: [{ port: 4100, targetPort: 4100 }]

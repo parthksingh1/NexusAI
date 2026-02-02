@@ -1,0 +1,13 @@
+-- NexusAI Postgres bootstrap: extensions + pgvector
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Create schemas
+CREATE SCHEMA IF NOT EXISTS nexus;
+CREATE SCHEMA IF NOT EXISTS rag;
+
+-- Default privileges
+GRANT ALL PRIVILEGES ON SCHEMA nexus TO nexus;
+GRANT ALL PRIVILEGES ON SCHEMA rag TO nexus;

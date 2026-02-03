@@ -1,0 +1,30 @@
+{
+  "name": "@nexusai/llm-router",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@nexusai/shared": "workspace:*",
+    "@anthropic-ai/sdk": "^0.32.1",
+    "openai": "^4.67.3",
+    "@google/generative-ai": "^0.21.0",
+    "pino": "^9.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}

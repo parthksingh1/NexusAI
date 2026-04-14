@@ -35,11 +35,13 @@ async function main() {
   await app.register(websocket);
   await app.register(sensible);
 
-  app.setErrorHandler((err, _req, reply) => {
+  // Fastify v5 types this callback's `err` as `unknown`; cast to a permissive shape
+  // so we can narrow on NexusError and read Fastify's validation/message extras.
+  app.setErrorHandler((err: any, _req, reply) => {
     if (err instanceof NexusError) {
       return reply.code(err.statusCode).send(err.toJSON());
     }
-    if (err.validation) {
+    if (err?.validation) {
       return reply.code(400).send({ code: "VALIDATION_ERROR", message: err.message, details: err.validation });
     }
     logger.error({ err }, "unhandled error");

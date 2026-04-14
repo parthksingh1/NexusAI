@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { CommandPalette } from "@/components/command-palette";
 import { ShortcutsModal } from "@/components/shortcuts-modal";
+import { DemoBanner } from "@/components/demo-banner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="flex h-screen overflow-hidden">
             <Sidebar />
             <div className="flex flex-1 flex-col overflow-hidden">
+              <DemoBanner />
               <Topbar />
               <main className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-7xl px-8 py-8 animate-fade-in">

@@ -1,20 +1,7 @@
 # syntax=docker/dockerfile:1.7
 #
-# Deterministic multi-stage build for the orchestrator.
-#
-# Strategy (no pnpm at runtime, no symlinks, no tarballs):
-#   1. pnpm install + build every workspace package as normal.
-#   2. Manually assemble /app/out with a flat node_modules/:
-#        - copy orchestrator's compiled dist + package.json into /app/out
-#        - copy each @nexusai/* package (only dist + package.json + minimum
-#          metadata) into /app/out/node_modules/@nexusai/
-#        - merge the third-party production deps of shared / llm-router / db
-#          into orchestrator's package.json
-#        - strip workspace:* and devDependencies
-#   3. npm install --omit=dev — installs only third-party deps flatly.
-#   4. Regenerate Prisma client in /app/out so the Query Engine has schema-
-#      specific code.
-#   5. Hard sanity checks — fail the build if anything critical is missing.
+# Deterministic multi-stage orchestrator build.
+# No pnpm at runtime, no symlinks, no tarballs, no incremental TS caches.
 
 # ─── Stage 1: install workspace deps ──────────────────────────
 FROM node:20-bookworm-slim AS deps
@@ -34,7 +21,7 @@ COPY apps/orchestrator/package.json     apps/orchestrator/
 
 RUN pnpm install --frozen-lockfile=false
 
-# ─── Stage 2: build ───────────────────────────────────────────
+# ─── Stage 2: build all TypeScript packages ───────────────────
 FROM deps AS build
 COPY tsconfig.base.json ./
 COPY packages/shared       packages/shared
@@ -42,28 +29,48 @@ COPY packages/llm-router   packages/llm-router
 COPY packages/db           packages/db
 COPY apps/orchestrator     apps/orchestrator
 
-RUN pnpm --filter @nexusai/db exec prisma generate
-RUN pnpm --filter @nexusai/shared     build
-RUN pnpm --filter @nexusai/llm-router build
-RUN pnpm --filter @nexusai/db         build
-RUN pnpm --filter @nexusai/orchestrator build
+# Wipe any .tsbuildinfo that somehow made it into the image — the incremental
+# cache can make tsc skip emit silently after a layer invalidation.
+RUN find . -name "tsconfig.tsbuildinfo" -delete 2>/dev/null || true \
+ && find . -name "*.tsbuildinfo"         -delete 2>/dev/null || true
 
-# ─── Stage 3: assemble flat deploy directory ──────────────────
+# Prisma client first (tsc depends on its generated types for @nexusai/db).
+RUN pnpm --filter @nexusai/db exec prisma generate
+
+# Compile each package directly with pnpm exec tsc — avoids the npm-script wrapper
+# and any flaky `&&` chains. Fails loudly if any package can't emit.
+RUN cd packages/shared     && pnpm exec tsc -p tsconfig.json
+RUN cd packages/llm-router && pnpm exec tsc -p tsconfig.json
+RUN cd packages/db         && pnpm exec tsc -p tsconfig.json
+RUN cd apps/orchestrator   && pnpm exec tsc -p tsconfig.json
+
+# Verify every expected dist landed on disk before we try to copy them.
+RUN set -e; \
+    echo "── Verifying tsc emits ──"; \
+    for p in packages/shared packages/llm-router packages/db apps/orchestrator; do \
+      if [ ! -f "$p/dist/index.js" ]; then \
+        echo "❌ $p/dist/index.js missing after tsc"; \
+        echo "── listing $p ──"; \
+        ls -la "$p" || true; \
+        ls -la "$p/dist" 2>/dev/null || echo "   (no dist dir)"; \
+        exit 1; \
+      fi; \
+      echo "   ✔ $p/dist/index.js"; \
+    done
+
+# ─── Stage 3: assemble flat deploy directory ─────────────────
 RUN mkdir -p /app/out/dist \
              /app/out/prisma \
              /app/out/node_modules/@nexusai/shared \
              /app/out/node_modules/@nexusai/llm-router \
              /app/out/node_modules/@nexusai/db
 
-# Orchestrator's compiled output + top-level metadata.
+# Orchestrator compiled output + metadata.
 RUN cp -r apps/orchestrator/dist/. /app/out/dist/ \
  && cp apps/orchestrator/package.json /app/out/package.json \
  && cp -r packages/db/prisma/. /app/out/prisma/
 
-# Workspace packages — only ship what's actually needed at runtime:
-#   shared:      dist + package.json
-#   llm-router:  dist + package.json
-#   db:          dist + src (types point here) + prisma + package.json
+# Workspace packages — ship only what matters at runtime.
 RUN cp packages/shared/package.json     /app/out/node_modules/@nexusai/shared/package.json \
  && cp -r packages/shared/dist          /app/out/node_modules/@nexusai/shared/dist
 
@@ -76,11 +83,6 @@ RUN cp packages/db/package.json         /app/out/node_modules/@nexusai/db/packag
  && cp -r packages/db/prisma            /app/out/node_modules/@nexusai/db/prisma
 
 # ─── Stage 4: rewrite orchestrator's package.json ────────────
-# - merge non-workspace prod deps from shared / llm-router / db so npm install
-#   can fetch them (otherwise llm-router's imports of openai/anthropic/gemini
-#   SDKs would fail at runtime)
-# - remove every @nexusai/* entry (those are pre-placed manually above)
-# - nuke devDependencies and the build scripts
 RUN cd /app/out && node -e "                                    \
     const fs = require('fs');                                   \
     const read = (p) => JSON.parse(fs.readFileSync(p, 'utf8')); \
@@ -105,8 +107,7 @@ RUN cd /app/out && node -e "                                    \
     fs.writeFileSync('package.json', JSON.stringify(orch, null, 2)); \
     console.log('Merged deps:', Object.keys(orch.dependencies).sort().join(', '));"
 
-# Also strip workspace:* refs from each copied @nexusai/* package.json — Node
-# resolves them via sibling node_modules, so npm install must not try to fetch.
+# Strip workspace:* refs from each @nexusai/* package.json.
 RUN for pkg in shared llm-router db; do \
       cd /app/out/node_modules/@nexusai/$pkg && node -e "       \
         const fs = require('fs');                               \
@@ -122,14 +123,14 @@ RUN for pkg in shared llm-router db; do \
         fs.writeFileSync('package.json', JSON.stringify(p, null, 2));"; \
     done
 
-# ─── Stage 5: npm install third-party deps only ──────────────
+# ─── Stage 5: npm install — flat node_modules ────────────────
 WORKDIR /app/out
 RUN npm install --omit=dev --no-package-lock --no-audit --no-fund --loglevel=warn
 
-# ─── Stage 6: regenerate Prisma client in the deploy bundle ──
+# Regenerate Prisma client inside the flat bundle.
 RUN npx --yes prisma@5.22.0 generate --schema=prisma/schema.prisma
 
-# ─── Stage 7: hard sanity checks ─────────────────────────────
+# ─── Stage 6: hard sanity checks ─────────────────────────────
 RUN set -e; \
     echo "── Verifying deploy bundle ──"; \
     for p in fastify @fastify/cors @fastify/websocket ioredis kafkajs pino zod uuid neo4j-driver stripe node-cron; do \
@@ -143,7 +144,7 @@ RUN set -e; \
     test -f dist/index.js                                  || (echo "❌ missing orchestrator entry" && exit 1); \
     echo "✔ deploy bundle complete"
 
-# ─── Stage 8: lean runtime image ─────────────────────────────
+# ─── Stage 7: lean runtime image ─────────────────────────────
 FROM node:20-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production

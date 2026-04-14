@@ -43,6 +43,11 @@ RUN pnpm --filter @nexusai/orchestrator deploy --prod /app/out
 # Ship the Prisma schema alongside so the Query Engine can find it at runtime.
 RUN mkdir -p /app/out/prisma && cp -r packages/db/prisma/. /app/out/prisma/
 
+# `pnpm deploy --prod` reinstalls @prisma/client fresh, so the schema-specific
+# generated client is gone. Regenerate it inside the bundle so runtime has the
+# right query types + binary engine.
+RUN cd /app/out && npx --yes prisma@5.22.0 generate --schema=prisma/schema.prisma
+
 # ─── Stage 3: lean runtime image ──────────────────────────────
 FROM node:20-bookworm-slim AS runtime
 WORKDIR /app

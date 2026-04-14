@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1.7
 
-# ─── Stage 1: install ─────────────────────────────────────────
+# ─── Stage 1: install workspace deps ──────────────────────────
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 
-# openssl is required by Prisma at both build and runtime
+# openssl required by Prisma (build + runtime)
 RUN apt-get update -y \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
@@ -19,37 +19,40 @@ COPY apps/orchestrator/package.json     apps/orchestrator/
 
 RUN pnpm install --frozen-lockfile=false
 
-# ─── Stage 2: build ───────────────────────────────────────────
+# ─── Stage 2: build all workspace packages ────────────────────
 FROM deps AS build
-
 COPY tsconfig.base.json ./
 COPY packages/shared       packages/shared
 COPY packages/llm-router   packages/llm-router
 COPY packages/db           packages/db
 COPY apps/orchestrator     apps/orchestrator
 
-# Generate Prisma client (use `exec` — there's no "prisma" npm script in @nexusai/db).
 RUN pnpm --filter @nexusai/db exec prisma generate
 
-# Build in dependency order: shared → llm-router → db → orchestrator.
 RUN pnpm --filter @nexusai/shared     build
 RUN pnpm --filter @nexusai/llm-router build
 RUN pnpm --filter @nexusai/db         build
 RUN pnpm --filter @nexusai/orchestrator build
 
-# ─── Stage 3: runtime ─────────────────────────────────────────
+# `pnpm deploy` produces a self-contained bundle at /app/out:
+#   - flattens workspace symlinks (copies the ACTUAL built source of shared/llm-router/db)
+#   - installs only production dependencies into a real node_modules/
+#   - the result runs with plain `node dist/index.js` — no pnpm needed at runtime
+RUN pnpm --filter @nexusai/orchestrator deploy --prod /app/out
+
+# Ship the Prisma schema alongside so the Query Engine can find it at runtime.
+RUN mkdir -p /app/out/prisma && cp -r packages/db/prisma/. /app/out/prisma/
+
+# ─── Stage 3: lean runtime image ──────────────────────────────
 FROM node:20-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
-# openssl required by Prisma Query Engine at runtime
 RUN apt-get update -y \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
-
-COPY --from=build /app .
+COPY --from=build /app/out .
 
 EXPOSE 4000
-CMD ["node", "apps/orchestrator/dist/index.js"]
+CMD ["node", "dist/index.js"]

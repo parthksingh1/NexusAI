@@ -1,7 +1,7 @@
 // Explicit re-exports — guarantees the emitted .d.ts lists every named export,
 // regardless of module-resolution quirks between tsc and downstream bundlers.
 
-// ─── Types ────────────────────────────────────────────────────
+// ─── Domain types ─────────────────────────────────────────────
 export type {
   UUID,
   ISODate,
@@ -29,11 +29,37 @@ export type {
   SubscriptionTier,
 } from "./types.js";
 
-// ─── Zod schemas + derived types ──────────────────────────────
-export * from "./schemas.js";
+// ─── Zod schemas (values) + inferred types ────────────────────
+export {
+  AgentPersonaSchema,
+  ModelRoutingPolicySchema,
+  CreateAgentSchema,
+  UpdateAgentSchema,
+  StartRunSchema,
+  ToolInvocationSchema,
+  RagQuerySchema,
+  IngestDocumentSchema,
+} from "./schemas.js";
+export type {
+  CreateAgentInput,
+  UpdateAgentInput,
+  StartRunInput,
+  RagQueryInput,
+  IngestDocumentInput,
+} from "./schemas.js";
 
-// ─── Kafka topics + event payload types ───────────────────────
-export * from "./events.js";
+// ─── Kafka topics (value) + event payload types ───────────────
+export { KAFKA_TOPICS } from "./events.js";
+export type {
+  KafkaTopic,
+  AgentRunRequestedEvent,
+  AgentRunStartedEvent,
+  AgentStepEvent,
+  AgentRunFinishedEvent,
+  AgentMessageEvent,
+  ToolInvokedEvent,
+  LlmCallEvent,
+} from "./events.js";
 
 // ─── Typed error hierarchy ────────────────────────────────────
 export {

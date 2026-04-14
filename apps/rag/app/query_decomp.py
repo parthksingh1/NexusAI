@@ -45,8 +45,11 @@ async def decompose_query(query: str, max_subqueries: int = 4) -> list[str]:
     try:
         content = await asyncio.to_thread(_call)
         data = json.loads(content)
+    except (json.JSONDecodeError, OSError):
+        return [query]
+    try:
         subs = data.get("subqueries", [])
         subs = [s.strip() for s in subs if isinstance(s, str) and s.strip()]
         return subs[:max_subqueries] if subs else [query]
-    except (json.JSONDecodeError, KeyError, AttributeError, Exception):
+    except (KeyError, AttributeError):
         return [query]

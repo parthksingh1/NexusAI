@@ -6,17 +6,20 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
 
-    // Relax strictness for production build — the dev loop catches real bugs
-    // locally, and overly-strict CI flags stall deployment without improving safety.
+    // Relax strictness for the production build. Dev catches real bugs; overly-strict
+    // CI flags stall deployment without improving safety.
     "strict": false,
     "noImplicitAny": false,
     "noUncheckedIndexedAccess": false,
     "strictNullChecks": true,
+    "useUnknownInCatchVariables": false,
     "skipLibCheck": true,
 
-    // Let the runtime (Node 20) resolve .js specifiers; tsc emits them verbatim.
     "allowImportingTsExtensions": false,
-    "allowJs": false
+    "allowJs": false,
+
+    // Resolve .ts files from workspace deps (db package exposes its `src/index.ts` as types).
+    "resolveJsonModule": true
   },
   "include": ["src/**/*"]
 }

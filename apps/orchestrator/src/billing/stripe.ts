@@ -4,8 +4,12 @@ import { logger } from "../logger.js";
 
 const stripeKey = process.env.STRIPE_SECRET_KEY;
 
+// Omit `apiVersion` — Stripe will use the account's default pinned version.
+// Pinning a specific version here ties deploys to the SDK's TypeScript literal
+// union, which breaks on every minor SDK upgrade. Cast to the SDK's expected
+// config type so tsc doesn't block on missing-version errors.
 export const stripe: Stripe | null = stripeKey
-  ? new Stripe(stripeKey, { apiVersion: "2024-09-30.acacia" })
+  ? new Stripe(stripeKey, {} as unknown as Stripe.StripeConfig)
   : null;
 
 export type TierConfig = {

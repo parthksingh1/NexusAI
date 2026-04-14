@@ -34,11 +34,16 @@ RUN pnpm --filter @nexusai/llm-router build
 RUN pnpm --filter @nexusai/db         build
 RUN pnpm --filter @nexusai/orchestrator build
 
-# `pnpm deploy` produces a self-contained bundle at /app/out:
-#   - flattens workspace symlinks (copies the ACTUAL built source of shared/llm-router/db)
-#   - installs only production dependencies into a real node_modules/
-#   - the result runs with plain `node dist/index.js` — no pnpm needed at runtime
-RUN pnpm --filter @nexusai/orchestrator deploy --prod /app/out
+# `pnpm deploy` produces a self-contained bundle at /app/out.
+#
+# `--config.node-linker=hoisted` is critical: it creates a flat node_modules
+# (like npm / yarn classic) instead of the default pnpm symlinked layout.
+# Node's ESM resolver on symlinked pnpm trees sometimes can't find
+# direct deps of the app (e.g. fastify) once the bundle is moved between
+# Docker stages, because Node follows real paths by default.
+RUN pnpm --filter @nexusai/orchestrator \
+      --config.node-linker=hoisted \
+      deploy --prod /app/out
 
 # Ship the Prisma schema alongside so the Query Engine can find it at runtime.
 RUN mkdir -p /app/out/prisma && cp -r packages/db/prisma/. /app/out/prisma/
@@ -47,6 +52,14 @@ RUN mkdir -p /app/out/prisma && cp -r packages/db/prisma/. /app/out/prisma/
 # generated client is gone. Regenerate it inside the bundle so runtime has the
 # right query types + binary engine.
 RUN cd /app/out && npx --yes prisma@5.22.0 generate --schema=prisma/schema.prisma
+
+# Sanity-check — fail the build loudly if critical deps didn't land in the bundle.
+RUN set -e; \
+    test -d /app/out/node_modules/fastify                    || (echo "❌ fastify missing in deploy bundle" && ls /app/out/node_modules | head -40 && exit 1); \
+    test -d /app/out/node_modules/@nexusai/llm-router/dist   || (echo "❌ @nexusai/llm-router/dist missing" && exit 1); \
+    test -d /app/out/node_modules/@nexusai/shared/dist       || (echo "❌ @nexusai/shared/dist missing" && exit 1); \
+    test -d /app/out/node_modules/@nexusai/db                || (echo "❌ @nexusai/db missing" && exit 1); \
+    echo "✔ deploy bundle looks complete"
 
 # ─── Stage 3: lean runtime image ──────────────────────────────
 FROM node:20-bookworm-slim AS runtime

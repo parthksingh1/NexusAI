@@ -153,13 +153,15 @@ function toGeminiContent(m: ChatMessage): Content {
 }
 
 function toGeminiTool(t: ToolDefinition): FunctionDeclaration {
+  type PropSpec = { type: string; description?: string; enum?: string[] };
+  const entries = Object.entries(t.parameters.properties) as Array<[string, PropSpec]>;
   return {
     name: t.name,
     description: t.description,
     parameters: {
       type: SchemaType.OBJECT,
       properties: Object.fromEntries(
-        Object.entries(t.parameters.properties).map(([k, v]) => [
+        entries.map(([k, v]) => [
           k,
           { type: mapType(v.type), description: v.description, enum: v.enum },
         ]),

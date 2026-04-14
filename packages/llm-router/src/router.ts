@@ -54,7 +54,9 @@ export class LlmRouter {
    * Returns null if no model satisfies hard constraints — caller decides fallback.
    */
   selectModel(taskType: LlmTaskType, policy: ModelRoutingPolicy = {}): ModelSpec | null {
-    const weights = TASK_WEIGHTS[taskType];
+    // TASK_WEIGHTS is a total map over LlmTaskType, so this is always defined.
+    // The `!` satisfies noUncheckedIndexedAccess which otherwise widens to `undefined`.
+    const weights = TASK_WEIGHTS[taskType]!;
 
     // Hard filters
     let candidates = this.catalog.filter((m) => {
@@ -140,11 +142,12 @@ export class LlmRouter {
 
   /** Try next-best model if primary fails. Single retry; gives up after. */
   private async completeWithFallback(req: CompletionRequest, failed: ModelSpec): Promise<CompletionResult> {
+    const minTier = TASK_WEIGHTS[req.taskType]!.minReasoningTier;
     const alt = this.catalog.find(
       (m) =>
         m.provider !== failed.provider &&
         this.clients[m.provider] &&
-        m.reasoningTier >= TASK_WEIGHTS[req.taskType].minReasoningTier,
+        m.reasoningTier >= minTier,
     );
     if (!alt) throw new LlmProviderError(failed.provider, "No fallback model available");
     const client = this.clients[alt.provider]!;

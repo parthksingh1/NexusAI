@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Check, Zap, CreditCard, Download, FileText, Building2, Plus,
   ArrowRight, TrendingUp, Sparkles, Shield, Clock,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip as ReTooltip, CartesianGrid } from "recharts";
@@ -316,7 +317,7 @@ function UsageMeter({ label, used, cap, pct, hint, noProgress }: { label: string
   );
 }
 
-function AddonRow({ icon: Icon, title, desc, price }: { icon: React.ComponentType<{ className?: string }>; title: string; desc: string; price: string }) {
+function AddonRow({ icon: Icon, title, desc, price }: { icon: LucideIcon; title: string; desc: string; price: string }) {
   return (
     <div className="flex items-center justify-between p-3 rounded-md border border-border hover:bg-bg-hover transition-colors">
       <div className="flex items-center gap-3">

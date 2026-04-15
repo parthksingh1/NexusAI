@@ -7,6 +7,7 @@ import {
   Bot, ArrowRight, Plus, Zap, Activity, DollarSign, TrendingUp,
   CheckCircle2, XCircle, AlertCircle, Play, Clock, Wrench, ShieldAlert,
   Code2, Database, Network, Cpu, LineChart as LineIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip as ReTooltip, XAxis, YAxis } from "recharts";
 import { api, type Agent, type ActivityEvent } from "@/lib/api";
@@ -258,7 +259,7 @@ function ActivityIcon({ type }: { type: ActivityEvent["type"] }) {
 
 function HealthCard({
   label, latency, healthy, icon: Icon,
-}: { label: string; latency: string; healthy: boolean; icon: React.ComponentType<{ className?: string }> }) {
+}: { label: string; latency: string; healthy: boolean; icon: LucideIcon }) {
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between">
@@ -280,7 +281,7 @@ function HealthCard({
   );
 }
 
-function Cap({ icon: Icon, title, desc }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; title: string; desc: string }) {
+function Cap({ icon: Icon, title, desc }: { icon: LucideIcon; title: string; desc: string }) {
   return (
     <Card className="p-5 shine">
       <div className="h-9 w-9 rounded-md bg-brand-muted border border-brand-border flex items-center justify-center mb-3">

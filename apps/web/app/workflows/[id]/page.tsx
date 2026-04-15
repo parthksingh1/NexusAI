@@ -10,6 +10,7 @@ import "reactflow/dist/style.css";
 import {
   ArrowLeft, Play, Save, Zap, Bot, Database, GitFork, Filter, Send, Code2,
   Clock, Settings as Cog, Sparkles, Plus, Wand2, Download, Share2,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import { cn } from "@/lib/cn";
 
 type NodeKind = "trigger" | "agent" | "tool" | "branch" | "llm" | "output";
 
-const NODE_TYPES: Array<{ id: NodeKind; label: string; icon: React.ComponentType<{ className?: string }>; color: string; desc: string }> = [
+const NODE_TYPES: Array<{ id: NodeKind; label: string; icon: LucideIcon; color: string; desc: string }> = [
   { id: "trigger", label: "Trigger",  icon: Zap,      color: "from-amber-500 to-orange-500",   desc: "Webhook, schedule, or manual start" },
   { id: "agent",   label: "Agent",    icon: Bot,      color: "from-brand to-emerald-600",       desc: "Run an autonomous agent" },
   { id: "tool",    label: "Tool",     icon: Cog,      color: "from-zinc-600 to-zinc-500",       desc: "Invoke a single tool" },

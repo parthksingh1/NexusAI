@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Database, FileText, Github, Globe, MessageSquare, Upload, Search, Plus,
   File, FileCode, FolderOpen, MoreHorizontal, Trash2, Download,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -41,7 +42,7 @@ const CONNECTORS = [
   { id: "url",    name: "Web pages", icon: Globe,          endpoint: "/connectors/url",          desc: "Fetch and strip any public URL",         color: "text-white bg-brand" },
 ];
 
-const SOURCE_ICON: Record<Doc["source"], React.ComponentType<{ className?: string }>> = {
+const SOURCE_ICON: Record<Doc["source"], LucideIcon> = {
   notion: FileText, github: Github, slack: MessageSquare, url: Globe, upload: FileCode,
 };
 

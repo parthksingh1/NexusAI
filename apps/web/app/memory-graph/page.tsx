@@ -9,6 +9,7 @@ import "reactflow/dist/style.css";
 import {
   Bot, Brain, Cpu, Zap, Wrench, Sparkles, Search, Filter, Network,
   RefreshCw, Download, Layers,
+  type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/section";
 import { Card } from "@/components/ui/card";
@@ -21,7 +22,7 @@ import { cn } from "@/lib/cn";
 
 type MemoryKind = "agent" | "episodic" | "semantic" | "procedural" | "reflection" | "tool" | "concept";
 
-const KINDS: Record<MemoryKind, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
+const KINDS: Record<MemoryKind, { label: string; color: string; icon: LucideIcon }> = {
   agent:      { label: "Agent",      color: "from-brand to-emerald-600",      icon: Bot },
   episodic:   { label: "Episodic",   color: "from-info to-blue-600",          icon: Brain },
   semantic:   { label: "Semantic",   color: "from-warn to-amber-600",         icon: Layers },

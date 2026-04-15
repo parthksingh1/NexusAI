@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Search, Filter, ChevronRight, Brain, Wrench, Eye, CheckCircle2,
   Network, Cpu, Database, Zap, ArrowRight, Clock, AlertCircle,
+  type LucideIcon,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { PageHeader } from "@/components/ui/section";
@@ -40,7 +41,7 @@ const SAMPLE_SPANS: Span[] = [
   { id: "s9",  name: "llm.synthesize",     kind: "llm",      startMs: 2820, durMs: 600,  status: "ok", parent: "s1", meta: "claude-sonnet-4-6 · 1,840 tok" },
 ];
 
-const KIND_META: Record<Span["kind"], { icon: React.ComponentType<{ className?: string }>; color: string }> = {
+const KIND_META: Record<Span["kind"], { icon: LucideIcon; color: string }> = {
   llm:      { icon: Brain,   color: "bg-info/80" },
   tool:     { icon: Wrench,  color: "bg-warn/80" },
   retrieve: { icon: Database, color: "bg-brand/80" },

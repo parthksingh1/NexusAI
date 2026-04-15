@@ -10,10 +10,11 @@ import {
   CreditCard, Settings, Plus, Zap, Users, Plug, FileText, Sun, Moon, Workflow,
   Target, Network, GitCompare, GitBranch, Calendar, Webhook, Shield, ScrollText,
   Radar, Terminal, BookOpen, Rocket, Keyboard,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
-type NavAction = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; href?: string; action?: () => void; group: string; shortcut?: string };
+type NavAction = { id: string; label: string; icon: LucideIcon; href?: string; action?: () => void; group: string; shortcut?: string };
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);

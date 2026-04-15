@@ -17,7 +17,7 @@ import { cn } from "@/lib/cn";
 type Category = "data-source" | "notification" | "observability" | "automation";
 type Integration = {
   id: string; name: string; description: string; category: Category;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
   connected: boolean; badge?: string; color?: string;
 };
 

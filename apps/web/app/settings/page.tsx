@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { useLocalValue, useLocalCollection } from "@/lib/store";
 
 type ApiKey = {
   id: string; name: string; prefix: string; lastUsedAt: string | null; createdAt: string;
@@ -225,11 +226,25 @@ function ApiKeysTab() {
 
 // ─── Preferences ────────────────────────────────────────────────
 function PreferencesTab() {
-  const [theme, setTheme] = useState("system");
-  const [reduceMotion, setReduceMotion] = useState(false);
-  const [compact, setCompact] = useState(false);
-  const [telemetry, setTelemetry] = useState(true);
-  const [model, setModel] = useState("auto");
+  const [prefs, setPrefs] = useLocalValue("nexus_prefs", {
+    theme: "system",
+    reduceMotion: false,
+    compact: false,
+    telemetry: true,
+    model: "auto",
+    maxSteps: "12",
+  });
+  const { theme, reduceMotion, compact, telemetry, model } = prefs;
+  const setTheme = (v: string) => {
+    setPrefs({ ...prefs, theme: v });
+    if (v === "dark") document.documentElement.classList.add("dark");
+    else if (v === "light") document.documentElement.classList.remove("dark");
+  };
+  const setReduceMotion = (v: boolean) => setPrefs({ ...prefs, reduceMotion: v });
+  const setCompact = (v: boolean) => setPrefs({ ...prefs, compact: v });
+  const setTelemetry = (v: boolean) => setPrefs({ ...prefs, telemetry: v });
+  const setModel = (v: string) => setPrefs({ ...prefs, model: v });
+  const setMaxSteps = (v: string) => setPrefs({ ...prefs, maxSteps: v });
 
   return (
     <div className="space-y-4">
@@ -275,7 +290,7 @@ function PreferencesTab() {
           </SettingRow>
           <Separator />
           <SettingRow label="Max steps per run" desc="Cap on ReAct iterations. Higher = more tokens.">
-            <Select defaultValue="12">
+            <Select value={prefs.maxSteps} onValueChange={setMaxSteps}>
               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="6">6</SelectItem>

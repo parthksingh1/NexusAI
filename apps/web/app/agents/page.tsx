@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { api, type Agent } from "@/lib/api";
+import { type Agent } from "@/lib/api";
+import { mockAgents } from "@/lib/mock-data";
+import { useLocalCollection } from "@/lib/store";
 import {
   Bot, Plus, Wrench, Search, LayoutGrid, List, Filter, SortAsc, MoreHorizontal, Play,
-  Archive, Copy, Trash2,
+  Archive, Copy, Trash2, RefreshCw,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -16,7 +18,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
@@ -24,18 +25,21 @@ import {
 import { cn } from "@/lib/cn";
 
 export default function AgentsPage() {
-  const [agents, setAgents] = useState<Agent[] | null>(null);
+  const { items: agents, add, update, remove, reset } = useLocalCollection<Agent>("nexus_agents", mockAgents);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [sort, setSort] = useState<"updated" | "name" | "created">("updated");
   const [view, setView] = useState<"grid" | "list">("grid");
 
-  async function refresh() { const d = await api.listAgents(); setAgents(d.agents); }
-  useEffect(() => { void refresh(); }, []);
+  // Open the new-agent dialog automatically when ?new=1 is in the URL.
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1") {
+      setOpen(true);
+    }
+  }, []);
 
   const filtered = useMemo(() => {
-    if (!agents) return [];
     let out = agents;
     if (status !== "all") out = out.filter((a) => a.status === status);
     if (q) {
@@ -48,12 +52,60 @@ export default function AgentsPage() {
     return out;
   }, [agents, q, status, sort]);
 
+  function handleCreated(input: { name: string; goal: string; tools: string[]; systemPrompt: string }) {
+    const now = new Date().toISOString();
+    const a: Agent = {
+      id: `agent_${Date.now().toString(36)}`,
+      name: input.name,
+      goal: input.goal,
+      persona: { name: input.name, description: input.goal.slice(0, 160), systemPrompt: input.systemPrompt, temperature: 0.3 },
+      tools: input.tools,
+      status: "IDLE",
+      createdAt: now,
+      updatedAt: now,
+    };
+    add(a);
+    toast.success(`Agent “${a.name}” created`);
+    setOpen(false);
+  }
+
+  function handleDelete(a: Agent) {
+    if (!confirm(`Delete agent "${a.name}"? This cannot be undone.`)) return;
+    remove(a.id);
+    toast.success(`Deleted “${a.name}”`);
+  }
+
+  function handleArchive(a: Agent) {
+    update(a.id, { status: a.status === "STOPPED" ? "IDLE" : "STOPPED" });
+    toast.success(a.status === "STOPPED" ? `Restored “${a.name}”` : `Archived “${a.name}”`);
+  }
+
+  function handleDuplicate(a: Agent) {
+    const now = new Date().toISOString();
+    add({
+      ...a,
+      id: `agent_${Date.now().toString(36)}`,
+      name: `${a.name} (copy)`,
+      status: "IDLE",
+      createdAt: now,
+      updatedAt: now,
+    });
+    toast.success(`Duplicated “${a.name}”`);
+  }
+
   return (
     <div>
       <PageHeader
         title="Agents"
         description="Create, configure, and run your autonomous agents."
-        actions={<Button onClick={() => setOpen(true)} leftIcon={<Plus className="h-3.5 w-3.5" />}>New agent</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => { reset(); toast.success("Reset to demo data"); }} leftIcon={<RefreshCw className="h-3.5 w-3.5" />}>
+              Reset demo
+            </Button>
+            <Button onClick={() => setOpen(true)} leftIcon={<Plus className="h-3.5 w-3.5" />}>New agent</Button>
+          </div>
+        }
       />
 
       {/* Filters bar */}
@@ -69,6 +121,7 @@ export default function AgentsPage() {
             <SelectItem value="IDLE">Idle</SelectItem>
             <SelectItem value="RUNNING">Running</SelectItem>
             <SelectItem value="PAUSED">Paused</SelectItem>
+            <SelectItem value="STOPPED">Stopped</SelectItem>
             <SelectItem value="ERROR">Error</SelectItem>
           </SelectContent>
         </Select>
@@ -81,21 +134,17 @@ export default function AgentsPage() {
           </SelectContent>
         </Select>
         <div className="ml-auto inline-flex items-center rounded-md border border-border bg-bg-elevated p-0.5">
-          <button onClick={() => setView("grid")} className={cn("p-1.5 rounded transition-colors", view === "grid" ? "bg-bg-hover text-fg" : "text-fg-subtle hover:text-fg")}>
+          <button onClick={() => setView("grid")} className={cn("p-1.5 rounded transition-colors", view === "grid" ? "bg-bg-hover text-fg" : "text-fg-subtle hover:text-fg")} aria-label="Grid view">
             <LayoutGrid className="h-3.5 w-3.5" />
           </button>
-          <button onClick={() => setView("list")} className={cn("p-1.5 rounded transition-colors", view === "list" ? "bg-bg-hover text-fg" : "text-fg-subtle hover:text-fg")}>
+          <button onClick={() => setView("list")} className={cn("p-1.5 rounded transition-colors", view === "list" ? "bg-bg-hover text-fg" : "text-fg-subtle hover:text-fg")} aria-label="List view">
             <List className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
       {/* Content */}
-      {agents === null ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-40" />)}
-        </div>
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         agents.length === 0 ? (
           <EmptyState
             icon={Bot}
@@ -108,22 +157,28 @@ export default function AgentsPage() {
         )
       ) : view === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((a) => <AgentCard key={a.id} agent={a} />)}
+          {filtered.map((a) => <AgentCard key={a.id} agent={a} onDelete={handleDelete} onArchive={handleArchive} onDuplicate={handleDuplicate} />)}
         </div>
       ) : (
         <Card>
           <ul className="divide-y divide-border">
-            {filtered.map((a) => <AgentRow key={a.id} agent={a} />)}
+            {filtered.map((a) => <AgentRow key={a.id} agent={a} onDelete={handleDelete} onArchive={handleArchive} onDuplicate={handleDuplicate} />)}
           </ul>
         </Card>
       )}
 
-      <NewAgentDialog open={open} onOpenChange={setOpen} onCreated={() => void refresh()} />
+      <NewAgentDialog open={open} onOpenChange={setOpen} onCreated={handleCreated} />
     </div>
   );
 }
 
-function AgentCard({ agent }: { agent: Agent }) {
+type AgentActions = {
+  onDelete: (a: Agent) => void;
+  onArchive: (a: Agent) => void;
+  onDuplicate: (a: Agent) => void;
+};
+
+function AgentCard({ agent, onDelete, onArchive, onDuplicate }: { agent: Agent } & AgentActions) {
   return (
     <Card interactive className="p-5 h-full flex flex-col group relative">
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -136,7 +191,7 @@ function AgentCard({ agent }: { agent: Agent }) {
             <div className="text-2xs text-fg-subtle mt-0.5">Updated {formatDistanceToNow(new Date(agent.updatedAt), { addSuffix: true })}</div>
           </div>
         </Link>
-        <AgentMenu agent={agent} />
+        <AgentMenu agent={agent} onDelete={onDelete} onArchive={onArchive} onDuplicate={onDuplicate} />
       </div>
       <Link href={`/agents/${agent.id}`} className="flex-1">
         <p className="text-sm text-fg-muted line-clamp-3 leading-relaxed">{agent.goal}</p>
@@ -153,7 +208,7 @@ function AgentCard({ agent }: { agent: Agent }) {
   );
 }
 
-function AgentRow({ agent }: { agent: Agent }) {
+function AgentRow({ agent, onDelete, onArchive, onDuplicate }: { agent: Agent } & AgentActions) {
   return (
     <li className="px-4 py-3 flex items-center gap-4 hover:bg-bg-hover transition-colors">
       <Link href={`/agents/${agent.id}`} className="flex items-center gap-3 min-w-0 flex-1">
@@ -174,12 +229,12 @@ function AgentRow({ agent }: { agent: Agent }) {
       <div className="text-2xs text-fg-subtle font-mono w-28 text-right hidden md:block">
         {formatDistanceToNow(new Date(agent.updatedAt), { addSuffix: true })}
       </div>
-      <AgentMenu agent={agent} />
+      <AgentMenu agent={agent} onDelete={onDelete} onArchive={onArchive} onDuplicate={onDuplicate} />
     </li>
   );
 }
 
-function AgentMenu({ agent }: { agent: Agent }) {
+function AgentMenu({ agent, onDelete, onArchive, onDuplicate }: { agent: Agent } & AgentActions) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -191,12 +246,19 @@ function AgentMenu({ agent }: { agent: Agent }) {
         <DropdownMenuItem asChild>
           <Link href={`/agents/${agent.id}`}><Play className="h-3.5 w-3.5" />Open & run</Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(agent.id); toast.success("Agent ID copied"); }}>
+        <DropdownMenuItem onSelect={() => onDuplicate(agent)}>
+          <Copy className="h-3.5 w-3.5" />Duplicate
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => { navigator.clipboard.writeText(agent.id); toast.success("Agent ID copied"); }}>
           <Copy className="h-3.5 w-3.5" />Copy agent ID
         </DropdownMenuItem>
-        <DropdownMenuItem><Archive className="h-3.5 w-3.5" />Archive</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onArchive(agent)}>
+          <Archive className="h-3.5 w-3.5" />{agent.status === "STOPPED" ? "Restore" : "Archive"}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-danger"><Trash2 className="h-3.5 w-3.5" />Delete</DropdownMenuItem>
+        <DropdownMenuItem className="text-danger focus:text-danger" onSelect={() => onDelete(agent)}>
+          <Trash2 className="h-3.5 w-3.5" />Delete
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

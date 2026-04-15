@@ -19,6 +19,7 @@ import { Dialog } from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@/components/ui/dropdown";
+import { useLocalCollection } from "@/lib/store";
 
 type Webhook = {
   id: string; url: string; events: string[]; secret: string;
@@ -48,8 +49,44 @@ const RECENT_DELIVERIES = [
 ];
 
 export default function WebhooksPage() {
-  const [hooks, setHooks] = useState<Webhook[]>(MOCK);
+  const { items: hooks, add, update, remove } = useLocalCollection<Webhook>("nexus_webhooks", MOCK);
   const [newOpen, setNewOpen] = useState(false);
+  const [form, setForm] = useState({ url: "", events: new Set<string>(["agent.run.finished", "agent.run.failed"]) });
+
+  function toggleHook(id: string) {
+    const h = hooks.find((x) => x.id === id);
+    if (h) update(id, { active: !h.active });
+  }
+  function rotateSecret(id: string) {
+    update(id, { secret: `whsec_${Math.random().toString(36).slice(2, 8)}…` });
+    toast.success("Secret rotated");
+  }
+  function deleteHook(id: string) {
+    const h = hooks.find((x) => x.id === id);
+    if (h && !confirm(`Delete webhook for ${h.url}?`)) return;
+    remove(id);
+    toast.success("Webhook deleted");
+  }
+  function sendTest(id: string) {
+    const h = hooks.find((x) => x.id === id);
+    if (h) update(id, { lastDelivery: { ts: new Date().toISOString(), status: 200, durationMs: 87 }, deliveries: h.deliveries + 1 });
+    toast.success("Test event sent");
+  }
+  function createHook() {
+    if (!form.url.trim()) { toast.error("URL is required"); return; }
+    add({
+      id: `wh_${Date.now().toString(36)}`,
+      url: form.url,
+      events: Array.from(form.events),
+      secret: `whsec_${Math.random().toString(36).slice(2, 8)}…`,
+      active: true,
+      deliveries: 0,
+      failures: 0,
+    });
+    toast.success(`Webhook created for ${form.url}`);
+    setForm({ url: "", events: new Set(["agent.run.finished", "agent.run.failed"]) });
+    setNewOpen(false);
+  }
 
   const active = hooks.filter((h) => h.active).length;
   const totalDeliveries = hooks.reduce((a, b) => a + b.deliveries, 0);
@@ -106,14 +143,14 @@ export default function WebhooksPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Switch checked={h.active} onCheckedChange={() => setHooks(hooks.map((x) => x.id === h.id ? { ...x, active: !x.active } : x))} />
+                      <Switch checked={h.active} onCheckedChange={() => toggleHook(h.id)} />
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm"><MoreHorizontal className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => toast.success("Test payload sent")}><Play className="h-3.5 w-3.5" />Send test event</DropdownMenuItem>
-                          <DropdownMenuItem><Edit className="h-3.5 w-3.5" />Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toast.success("Secret rotated")}><RefreshCw className="h-3.5 w-3.5" />Rotate secret</DropdownMenuItem>
-                          <DropdownMenuItem className="text-danger" onClick={() => setHooks(hooks.filter((x) => x.id !== h.id))}>
+                          <DropdownMenuItem onSelect={() => sendTest(h.id)}><Play className="h-3.5 w-3.5" />Send test event</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => toast.info("Edit dialog — coming soon")}><Edit className="h-3.5 w-3.5" />Edit</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => rotateSecret(h.id)}><RefreshCw className="h-3.5 w-3.5" />Rotate secret</DropdownMenuItem>
+                          <DropdownMenuItem className="text-danger focus:text-danger" onSelect={() => deleteHook(h.id)}>
                             <Trash2 className="h-3.5 w-3.5" />Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -187,18 +224,29 @@ if (req.headers["x-nexus-signature"] !== expected) throw new Error("bad signatur
         footer={
           <>
             <Button variant="ghost" onClick={() => setNewOpen(false)}>Cancel</Button>
-            <Button onClick={() => { setNewOpen(false); toast.success("Webhook created"); }}>Create</Button>
+            <Button onClick={createHook} disabled={!form.url.trim()}>Create</Button>
           </>
         }
       >
         <div className="space-y-3">
-          <div><Label>URL</Label><Input placeholder="https://api.acme.com/nexus" /></div>
+          <div>
+            <Label>URL</Label>
+            <Input placeholder="https://api.acme.com/nexus"
+              value={form.url}
+              onChange={(e) => setForm({ ...form, url: e.target.value })} />
+          </div>
           <div>
             <Label>Subscribed events</Label>
             <div className="mt-1.5 grid grid-cols-2 gap-1.5">
               {EVENTS.map((e) => (
                 <label key={e} className="flex items-center gap-2 p-2 rounded-md border border-border bg-bg-elevated text-2xs font-mono cursor-pointer hover:bg-bg-hover">
-                  <input type="checkbox" className="accent-brand" defaultChecked={e.includes("finished") || e.includes("failed")} />
+                  <input type="checkbox" className="accent-brand"
+                    checked={form.events.has(e)}
+                    onChange={(ev) => {
+                      const next = new Set(form.events);
+                      if (ev.target.checked) next.add(e); else next.delete(e);
+                      setForm({ ...form, events: next });
+                    }} />
                   {e}
                 </label>
               ))}

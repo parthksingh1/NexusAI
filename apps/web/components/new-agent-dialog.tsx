@@ -14,7 +14,7 @@ import { cn } from "@/lib/cn";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: () => void;
+  onCreated: (input: { name: string; goal: string; tools: string[]; systemPrompt: string }) => void;
 };
 
 const TEMPLATES = [
@@ -76,19 +76,18 @@ export function NewAgentDialog({ open, onOpenChange, onCreated }: Props) {
   }
 
   async function save() {
+    setSaving(true);
     try {
-      setSaving(true);
+      // Best-effort backend persist — failures are non-blocking, the local store still saves.
       await api.createAgent({
         name, goal,
         persona: { name, description: goal.slice(0, 200), systemPrompt, temperature: 0.3 },
         tools: Array.from(selected),
-      });
-      toast.success("Agent created");
-      onCreated();
-      onOpenChange(false);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to create agent");
-    } finally { setSaving(false); }
+      }).catch(() => undefined);
+    } finally {
+      setSaving(false);
+      onCreated({ name, goal, tools: Array.from(selected), systemPrompt });
+    }
   }
 
   return (

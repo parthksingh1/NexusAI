@@ -16,6 +16,7 @@ import { Dialog } from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown";
+import { useLocalCollection } from "@/lib/store";
 
 type Schedule = {
   id: string; name: string; agent: string; cron: string; cronLabel: string;
@@ -39,16 +40,46 @@ const INITIAL: Schedule[] = [
 ];
 
 export default function SchedulesPage() {
-  const [schedules, setSchedules] = useState<Schedule[]>(INITIAL);
+  const { items: schedules, add, update, remove: removeItem } = useLocalCollection<Schedule>("nexus_schedules", INITIAL);
   const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", agent: "Market Research", cron: "0 9 * * 1-5", input: "" });
 
   function toggle(id: string) {
-    setSchedules(schedules.map((s) => s.id === id ? { ...s, enabled: !s.enabled } : s));
     const s = schedules.find((x) => x.id === id);
-    toast.success(`${s?.name} ${s?.enabled ? "paused" : "enabled"}`);
+    if (!s) return;
+    update(id, { enabled: !s.enabled });
+    toast.success(`${s.name} ${s.enabled ? "paused" : "enabled"}`);
   }
-  function remove(id: string) { setSchedules(schedules.filter((s) => s.id !== id)); toast.success("Schedule removed"); }
-  function runNow(id: string) { toast.success(`Running "${schedules.find((x) => x.id === id)?.name}"`); }
+  function remove(id: string) {
+    const s = schedules.find((x) => x.id === id);
+    if (s && !confirm(`Delete schedule "${s.name}"?`)) return;
+    removeItem(id);
+    toast.success("Schedule removed");
+  }
+  function runNow(id: string) {
+    const s = schedules.find((x) => x.id === id);
+    if (s) {
+      update(id, { lastRun: { ts: new Date().toISOString(), ok: true }, runs: s.runs + 1 });
+      toast.success(`Running "${s.name}"`);
+    }
+  }
+  function createSchedule() {
+    if (!form.name.trim()) { toast.error("Name is required"); return; }
+    const preset = PRESETS.find((p) => p.cron === form.cron);
+    add({
+      id: `sc_${Date.now().toString(36)}`,
+      name: form.name,
+      agent: form.agent,
+      cron: form.cron,
+      cronLabel: preset?.label ?? form.cron,
+      enabled: true,
+      nextRun: new Date(Date.now() + 3600_000).toISOString(),
+      runs: 0,
+    });
+    toast.success(`Schedule "${form.name}" created`);
+    setForm({ name: "", agent: "Market Research", cron: "0 9 * * 1-5", input: "" });
+    setOpen(false);
+  }
 
   const active = schedules.filter((s) => s.enabled).length;
   const totalRuns = schedules.reduce((a, b) => a + b.runs, 0);
@@ -146,35 +177,51 @@ export default function SchedulesPage() {
         footer={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={() => { setOpen(false); toast.success("Schedule created"); }}>Create</Button>
+            <Button onClick={createSchedule} disabled={!form.name.trim()}>Create</Button>
           </>
         }
       >
         <div className="space-y-3">
-          <div><Label>Name</Label><Input placeholder="Morning brief" /></div>
+          <div>
+            <Label>Name</Label>
+            <Input placeholder="Morning brief" value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
           <div>
             <Label>Agent</Label>
-            <Select defaultValue="research">
+            <Select value={form.agent} onValueChange={(v) => setForm({ ...form, agent: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="research">Market Research</SelectItem>
-                <SelectItem value="support">Customer Support</SelectItem>
-                <SelectItem value="devops">DevOps Sentinel</SelectItem>
+                <SelectItem value="Market Research">Market Research</SelectItem>
+                <SelectItem value="Customer Support">Customer Support</SelectItem>
+                <SelectItem value="DevOps Sentinel">DevOps Sentinel</SelectItem>
+                <SelectItem value="Code Helper">Code Helper</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
             <Label>Cron expression</Label>
-            <Input placeholder="0 9 * * 1-5" defaultValue="0 9 * * 1-5" className="font-mono" />
+            <Input placeholder="0 9 * * 1-5" value={form.cron}
+              onChange={(e) => setForm({ ...form, cron: e.target.value })} className="font-mono" />
             <div className="mt-2 flex flex-wrap gap-1.5">
               {PRESETS.slice(0, 4).map((p) => (
-                <button key={p.cron} className="text-2xs px-2 py-1 rounded-md bg-bg-muted border border-border hover:border-brand transition-colors">
+                <button
+                  key={p.cron}
+                  type="button"
+                  onClick={() => setForm({ ...form, cron: p.cron })}
+                  className="text-2xs px-2 py-1 rounded-md bg-bg-muted border border-border hover:border-brand transition-colors"
+                >
                   {p.label}
                 </button>
               ))}
             </div>
           </div>
-          <div><Label>Input</Label><Textarea rows={3} placeholder="What should the agent do on each tick?" /></div>
+          <div>
+            <Label>Input</Label>
+            <Textarea rows={3} placeholder="What should the agent do on each tick?"
+              value={form.input}
+              onChange={(e) => setForm({ ...form, input: e.target.value })} />
+          </div>
         </div>
       </Dialog>
     </div>

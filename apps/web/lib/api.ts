@@ -32,7 +32,13 @@ export type Agent = {
   id: string;
   name: string;
   goal: string;
-  persona: { name: string; description: string; systemPrompt: string };
+  persona: {
+    name: string;
+    description: string;
+    systemPrompt: string;
+    temperature?: number;
+    maxTokens?: number;
+  };
   tools: string[];
   status: "IDLE" | "RUNNING" | "PAUSED" | "STOPPED" | "ERROR";
   createdAt: string;
@@ -75,7 +81,7 @@ export type ActivityEvent = {
 export const api = {
   listAgents: () => req<{ agents: Agent[] }>("/agents", {}, { agents: mockAgents }),
   getAgent: (id: string) => req<Agent & { runs: AgentRun[] }>(`/agents/${id}`, {}, { ...mockAgents[0], id, runs: mockRuns }),
-  createAgent: (body: Partial<Agent> & { name: string; goal: string; persona: object; tools?: string[] }) =>
+  createAgent: (body: { name: string; goal: string; persona: Record<string, unknown>; tools?: string[] }) =>
     req<Agent>("/agents", { method: "POST", body: JSON.stringify({ modelRoutingPolicy: {}, tools: [], ...body }) }),
   deleteAgent: (id: string) => req<void>(`/agents/${id}`, { method: "DELETE" }),
   listTools: () => req<{ tools: Tool[] }>("/tools", {}, { tools: mockTools }),

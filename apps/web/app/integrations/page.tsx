@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Search, Check, ExternalLink, Plug, MessageSquare, Github, FileText, Globe,
   Database, Webhook, Mail, Slack, Bell, LineChart, Zap, Box,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui/section";
@@ -17,7 +18,7 @@ import { cn } from "@/lib/cn";
 type Category = "data-source" | "notification" | "observability" | "automation";
 type Integration = {
   id: string; name: string; description: string; category: Category;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
+  icon: LucideIcon;
   connected: boolean; badge?: string; color?: string;
 };
 
@@ -90,7 +91,7 @@ export default function IntegrationsPage() {
               <Card key={i.id} className="p-5 group flex flex-col" interactive>
                 <div className="flex items-start justify-between mb-3">
                   <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", i.color)}>
-                    <i.icon className="h-5 w-5" strokeWidth={2} />
+                    <i.icon className="h-5 w-5" />
                   </div>
                   <div className="flex gap-1.5">
                     {i.badge && <Badge size="sm">{i.badge}</Badge>}

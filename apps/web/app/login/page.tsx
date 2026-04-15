@@ -37,17 +37,22 @@ export default function LoginPage() {
     return r.json();
   }
 
+  function persist(token: string | null, user: { id: string; email: string; name?: string; tier?: string }, demo = false) {
+    if (token) localStorage.setItem("nexus_token", token);
+    if (demo) localStorage.setItem("nexus_demo", "1");
+    localStorage.setItem("nexus_user", JSON.stringify(user));
+  }
+
   async function submit() {
     setBusy(true); setErr(null);
     try {
       const d = await realSubmit({ email, password });
-      localStorage.setItem("nexus_token", d.token);
-      localStorage.setItem("nexus_user", JSON.stringify(d.user));
+      persist(d.token, d.user);
       toast.success("Welcome back");
-      router.push("/");
+      // Hard navigation so AppShell re-reads localStorage and lets us in.
+      window.location.href = "/";
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
-    } finally {
       setBusy(false);
     }
   }
@@ -62,24 +67,18 @@ export default function LoginPage() {
     setDemoBusy(true); setErr(null);
     try {
       const d = await realSubmit({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
-      localStorage.setItem("nexus_token", d.token);
-      localStorage.setItem("nexus_user", JSON.stringify(d.user));
+      persist(d.token, d.user);
       toast.success("Signed in as Demo User");
     } catch {
-      // Offline fallback — set a visibly-demo session so pages still render.
-      // Mock data covers the rest; API calls that hit the orchestrator will gracefully fall back too.
-      localStorage.setItem("nexus_demo", "1");
-      localStorage.setItem("nexus_user", JSON.stringify({
+      persist(null, {
         id: "00000000-0000-0000-0000-000000000001",
         email: DEMO_EMAIL,
         name: "Demo User",
         tier: "PRO",
-      }));
+      }, true);
       toast.info("Demo mode (backend offline — UI uses mock data)");
-    } finally {
-      setDemoBusy(false);
-      router.push("/");
     }
+    window.location.href = "/";
   }
 
   function oauth(provider: "github" | "google") {

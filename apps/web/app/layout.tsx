@@ -2,11 +2,9 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
-import { Sidebar } from "@/components/layout/sidebar";
-import { Topbar } from "@/components/layout/topbar";
+import { AppShell } from "@/components/layout/app-shell";
 import { CommandPalette } from "@/components/command-palette";
 import { ShortcutsModal } from "@/components/shortcuts-modal";
-import { DemoBanner } from "@/components/demo-banner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
@@ -22,18 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`dark ${sans.variable} ${mono.variable}`} suppressHydrationWarning>
       <body className="font-sans">
         <TooltipProvider delayDuration={250}>
-          <div className="flex h-screen overflow-hidden">
-            <Sidebar />
-            <div className="flex flex-1 flex-col overflow-hidden">
-              <DemoBanner />
-              <Topbar />
-              <main className="flex-1 overflow-y-auto">
-                <div className="mx-auto w-full max-w-7xl px-8 py-8 animate-fade-in">
-                  {children}
-                </div>
-              </main>
-            </div>
-          </div>
+          <AppShell>{children}</AppShell>
           <CommandPalette />
           <ShortcutsModal />
           <Toaster

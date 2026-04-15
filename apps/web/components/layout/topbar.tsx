@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Search, Bell, ChevronRight, Plus, Sun, Moon, LogOut, User, Settings, CreditCard } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Kbd } from "@/components/ui/kbd";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dropdown";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { getCurrentUser, getInitials, signOut, type AuthUser } from "@/lib/auth";
 
 const TITLES: Record<string, string> = {
   "": "Overview", agents: "Agents", playground: "Playground", streams: "Live streams",
@@ -23,10 +25,17 @@ const TITLES: Record<string, string> = {
 export function Topbar() {
   const pathname = usePathname();
   const [isDark, setIsDark] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains("dark"));
+    setUser(getCurrentUser());
   }, []);
+
+  function handleSignOut() {
+    toast.success("Signed out");
+    signOut("/login");
+  }
 
   const toggleTheme = () => {
     const next = !isDark;
@@ -123,14 +132,14 @@ export function Topbar() {
         <DropdownMenuTrigger asChild>
           <button className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-bg rounded-full">
             <Avatar className="h-8 w-8 cursor-pointer">
-              <AvatarFallback>DX</AvatarFallback>
+              <AvatarFallback>{getInitials(user)}</AvatarFallback>
             </Avatar>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[220px]">
           <div className="px-2 py-2">
-            <div className="text-sm font-medium">Demo User</div>
-            <div className="text-2xs text-fg-subtle">demo@nexusai.local</div>
+            <div className="text-sm font-medium">{user?.name ?? "Demo User"}</div>
+            <div className="text-2xs text-fg-subtle">{user?.email ?? "demo@nexusai.local"}</div>
           </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
@@ -143,7 +152,9 @@ export function Topbar() {
             <Link href="/billing"><CreditCard className="h-3.5 w-3.5" />Billing</Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem><LogOut className="h-3.5 w-3.5" />Sign out</DropdownMenuItem>
+          <DropdownMenuItem onSelect={handleSignOut} className="text-danger focus:text-danger">
+            <LogOut className="h-3.5 w-3.5" />Sign out
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>

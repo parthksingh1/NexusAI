@@ -1,0 +1,80 @@
+[project]
+name = "nexus-manager"
+version = "0.1.0"
+description = "NexusAI Manager — an AI planner that spawns specialist agents to complete a goal"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.6",
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.5.2",
+    "httpx>=0.27.2",
+    "structlog>=24.4.0",
+    "prometheus-client>=0.21.0",
+    "redis>=5.1.1",
+    "tenacity>=9.0.0",
+    # Graph engine and checkpointing
+    "langgraph>=0.2.60",
+    "langgraph-checkpoint-postgres>=2.0.2",
+    "psycopg[binary,pool]>=3.2.3",
+    # Structured LLM output
+    "instructor>=1.7.0",
+    "ollama>=0.4.0",
+    "anthropic>=0.40.0",
+    "openai>=1.51.0",
+    "google-genai>=0.3.0",
+    # Tools
+    "trafilatura>=1.12.0",
+    "playwright>=1.48.0",
+    "youtube-transcript-api>=0.6.2",
+    "yt-dlp>=2024.10.22",
+    "beautifulsoup4>=4.12.3",
+    "nexus-agents-shared",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.24.0",
+    "respx>=0.21.1",
+    "ruff>=0.6.9",
+    "mypy>=1.11.2",
+]
+evals = [
+    "ragas>=0.2.0",
+    "datasets>=3.0.0",
+]
+tracing = [
+    "langsmith>=0.1.140",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nexus_manager"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.uv.sources]
+nexus-agents-shared = { path = "../../packages-py/nexus-agents-shared" }
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501", "E402", "F401", "F403", "F841", "UP007"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "integration: hits real external services; deselect with -m 'not integration'",
+]

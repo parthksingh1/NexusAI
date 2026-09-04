@@ -159,3 +159,52 @@ services:
     ports:
       - "16686:16686"
     networks: [nexus]
+
+  # ─── RAG service (hybrid retrieval) ─────────────────────────
+  rag:
+    build:
+      context: .
+      dockerfile: apps/rag/Dockerfile
+    container_name: nexus-rag
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://nexus:nexus@postgres:5432/nexusai
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      COHERE_API_KEY: ${COHERE_API_KEY:-}
+      JINA_API_KEY: ${JINA_API_KEY:-}
+      REASONING_MODEL: ${REASONING_MODEL:-gemini-1.5-pro}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [nexus]
+
+  # ─── Evals service (agent regression testing) ───────────────
+  evals:
+    build:
+      context: .
+      dockerfile: apps/evals/Dockerfile
+    container_name: nexus-evals
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://nexus:nexus@postgres:5432/nexusai
+      ORCHESTRATOR_URL: http://host.docker.internal:4000
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      JUDGE_MODEL: ${JUDGE_MODEL:-gemini-1.5-pro}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EVAL_CONCURRENCY: ${EVAL_CONCURRENCY:-4}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "5100:5100"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [nexus]

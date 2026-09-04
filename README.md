@@ -111,6 +111,22 @@ Everything is **typed end-to-end**, **streamed over WebSockets**, and **horizont
 - Prompt optimizer analyzes reflection history and proposes improved system prompts.
 - Skill memory is recalled into system prompts on subsequent runs.
 
+### Evaluation & regression gating
+- Named **suites** of test cases per agent, upserted idempotently from CI.
+- Ten **assertion types** — exact/contains/regex/JSON-path/numeric, latency and cost budgets,
+  embedding similarity, and rubric-based LLM-as-judge.
+- Targets an orchestrator **agent**, an arbitrary **HTTP** endpoint, or a free **echo** target.
+- **Regression gate** diffs a candidate run against a baseline and returns a ship / no-ship
+  verdict — any case that got worse blocks, even when the aggregate pass rate improved.
+
+### Evaluation & regression gating
+- Named **suites** of test cases per agent, upserted idempotently so CI can re-post them.
+- Ten **assertion types** — exact / contains / regex / JSON-path / numeric, latency and cost
+  budgets, embedding similarity, and rubric-based LLM-as-judge.
+- Targets an orchestrator **agent**, an arbitrary **HTTP** endpoint, or a free **echo** target.
+- **Regression gate** diffs a candidate run against a baseline and returns a ship / no-ship
+  verdict — any case that got worse blocks the change, even when the pass rate improved.
+
 ### Observability
 - **Prometheus** metrics on every service (counters, histograms, gauges).
 - **OpenTelemetry** tracing exported to Jaeger (distributed request flows).
@@ -179,6 +195,7 @@ nexusai/
 │   ├── web/           Next.js 15 dashboard
 │   ├── orchestrator/  Fastify service — agents, tools, ReAct, auth, billing
 │   ├── rag/           Python FastAPI — hybrid RAG + connectors
+│   ├── evals/         Python FastAPI — agent eval suites + regression gates
 │   ├── sandbox/       Docker sandbox runner (code execution)
 │   ├── realtime/      Real-time ingest + anomaly + alerts
 │   └── simulation/    Mock APIs for safe CI testing

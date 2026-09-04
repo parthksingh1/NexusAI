@@ -147,6 +147,15 @@ source adapter ─► handleTick() ─► [optional] LLM sentiment ─► z-scor
 ### `apps/simulation` — safe testing
 Stateless mock API server. Returns deterministic (seeded-random) responses for endpoints agents commonly hit: email send, stock quotes, CRM contacts. Also supports scenario replay — a test harness uploads a script of (URL → response) steps and the service serves them in order. Point agents here in CI to avoid real-world side effects.
 
+### `apps/evals` — evaluation & regression gating
+Python/FastAPI, port 5100. Owns the `evals` Postgres schema outright — it creates its own tables on startup rather than going through Prisma, which keeps the eval data model independent of the application schema.
+
+A **suite** holds cases; each case is sent to a **target** and scored by its **assertions**. Targets are an orchestrator agent (start a run, poll `GET /runs/:id` to a terminal state, harvest the real cost and latency), an arbitrary HTTP endpoint, or `echo` for free smoke tests. Cases run concurrently under a semaphore and each result is persisted as it lands, so a run that dies halfway still has usable partial results.
+
+Assertions are split between deterministic checks that need no API keys (string / regex / JSON-path / numeric matching, plus latency and cost budgets) and model-backed ones (embedding similarity, LLM-as-judge). The provider SDKs are imported lazily, so the deterministic path runs with no keys configured. A scorer never raises — a failure records a zero with the reason attached, so one bad assertion cannot take down a run.
+
+`GET /runs/:id/compare?baseline=…` is the CI hook. It diffs two runs case-by-case and returns `gatePassed` plus the reasons it failed. The gate is deliberately conservative: **any case that scored worse counts as a regression, even when the aggregate pass rate improved**, because averages hide the case you broke. Cases present in the baseline but missing from the candidate also fail the gate, so a run cannot be turned green by deleting tests.
+
 ---
 
 ## Data Stores

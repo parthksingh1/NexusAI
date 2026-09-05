@@ -56,6 +56,38 @@ export default function ManagerPage() {
     };
   }, []);
 
+  // ─── Attach to an existing run ────────────────────────────────
+
+  // `?run=<id>` reopens a run: its goal, plan and current state are loaded, and the event
+  // stream replays from the beginning. That makes a run linkable — shareable with someone
+  // else, or reopened after closing the tab, rather than being lost with the page state.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const requested = new URLSearchParams(window.location.search).get("run");
+    if (!requested) return;
+
+    let cancelled = false;
+    managerApi
+      .getRun(requested)
+      .then((run) => {
+        if (cancelled) return;
+        setGoal(run.goal);
+        setDetail(run);
+        setStatus(run.status);
+        if (run.plan) setPlan(run.plan);
+        setRunId(run.run_id);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        toast.error(
+          error instanceof ManagerUnreachable ? error.message : `Could not open run: ${error.message}`,
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // ─── Event stream ─────────────────────────────────────────────
 
   useEffect(() => {
@@ -129,9 +161,33 @@ export default function ManagerPage() {
     return details;
   }, [events]);
 
-  const budget = detail?.budget ?? (events.findLast((e) => e.payload.snapshot)?.payload.snapshot as
-    | RunDetail["budget"]
-    | undefined);
+  // Spend has to be derived from the stream while a run is in flight. The run record only
+  // gets its final budget when the run ends, and a snapshot event is only published under
+  // budget pressure — so relying on either alone leaves the header reading zero for the
+  // whole run while workers are visibly burning tokens.
+  const budget = useMemo(() => {
+    const snapshot = events.findLast((e) => e.payload.snapshot)?.payload.snapshot as
+      | RunDetail["budget"]
+      | undefined;
+    const base = (status === "done" || status === "partial" || status === "error"
+      ? detail?.budget
+      : undefined) ?? snapshot ?? detail?.budget;
+    if (!base) return undefined;
+
+    const finished = events.filter((e) => e.kind === "worker_done");
+    const observedTokens = finished.reduce((sum, e) => sum + (e.payload.result?.tokens_used ?? 0), 0);
+    const observedCost = finished.reduce((sum, e) => sum + (e.payload.result?.cost_usd ?? 0), 0);
+    const observedAgents = new Set(
+      events.filter((e) => e.kind === "worker_start").map((e) => e.payload.task_id),
+    ).size;
+
+    return {
+      ...base,
+      tokens_used: Math.max(base.tokens_used, observedTokens),
+      usd_spent: Math.max(base.usd_spent, observedCost),
+      agents_spawned: Math.max(base.agents_spawned, observedAgents),
+    };
+  }, [detail, events, status]);
 
   const running = status === "running" || status === "planning" || submitting;
 
@@ -153,6 +209,8 @@ export default function ManagerPage() {
       setRunId(started.run_id);
       if (started.plan) setPlan(started.plan);
       setStatus("running");
+      // Put the run in the URL so it survives a refresh and can be handed to someone else.
+      window.history.replaceState(null, "", `?run=${started.run_id}`);
     } catch (error) {
       setStatus(undefined);
       const message =

@@ -26,13 +26,13 @@ Rules:
 
 
 class ExtractedItem(BaseModel):
-    field: str = ""
-    value: str = ""
+    field: str
+    value: str
 
 
 class ExtractionOutput(BaseModel):
+    summary: str
     items: list[ExtractedItem] = Field(default_factory=list)
-    summary: str = ""
 
 
 def build_extraction_model(schema: dict) -> type[BaseModel]:

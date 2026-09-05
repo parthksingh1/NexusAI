@@ -13,7 +13,8 @@ from urllib.parse import parse_qs, urlparse
 
 import structlog
 
-from ..config import Settings, settings as default_settings
+from ..config import Settings
+from ..config import settings as default_settings
 from .schemas import Segment, UrlInput, Video, VideoResult
 
 log = structlog.get_logger(__name__)
@@ -104,7 +105,7 @@ async def youtube_transcript(video_url: str, *, settings: Settings | None = None
         segments = await asyncio.wait_for(
             asyncio.to_thread(_fetch_transcript_sync, video_id), timeout=cfg.tool_timeout_s
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return VideoResult(ok=False, error=f"transcript request for {video_id} timed out")
     except Exception as exc:
         name = type(exc).__name__

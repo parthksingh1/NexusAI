@@ -15,7 +15,8 @@ from typing import TypeVar
 import structlog
 from pydantic import BaseModel
 
-from ..config import Provider, Settings, settings as default_settings
+from ..config import Provider, Settings
+from ..config import settings as default_settings
 from ..observability import metrics
 from .models import (
     ChatRequest,

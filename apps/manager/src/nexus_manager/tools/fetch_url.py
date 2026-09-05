@@ -12,7 +12,8 @@ from urllib.parse import urljoin, urlparse
 import httpx
 import structlog
 
-from ..config import Settings, settings as default_settings
+from ..config import Settings
+from ..config import settings as default_settings
 from ..safety.guards import RateLimiter, RobotsCache, URLBlocked, check_url
 from .schemas import Page, PageResult, UrlInput
 

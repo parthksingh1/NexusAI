@@ -10,7 +10,8 @@ from __future__ import annotations
 import httpx
 import structlog
 
-from ..config import Settings, settings as default_settings
+from ..config import Settings
+from ..config import settings as default_settings
 from .schemas import CodeInput, ExecResult
 
 log = structlog.get_logger(__name__)

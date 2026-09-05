@@ -14,7 +14,8 @@ from contextlib import asynccontextmanager
 
 import structlog
 
-from ..config import Settings, settings as default_settings
+from ..config import Settings
+from ..config import settings as default_settings
 
 log = structlog.get_logger(__name__)
 

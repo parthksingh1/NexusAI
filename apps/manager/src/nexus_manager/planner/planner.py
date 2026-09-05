@@ -15,7 +15,8 @@ import string
 import structlog
 from nexus_agents_shared import Plan, Task, TaskType
 
-from ..config import Provider, Settings, settings as default_settings
+from ..config import Provider, Settings
+from ..config import settings as default_settings
 from ..llm.models import Message
 from ..llm.router import LLMRouter
 from .prompts import MAX_TASKS, REPLAN_SUFFIX, system_prompt, user_prompt
@@ -116,6 +117,14 @@ def repair(draft: PlanDraft, *, goal: str) -> Plan:
     missing or half-wired synthesis node. Failing the run over any of these would be a worse
     outcome than repairing them.
     """
+    # Recover intent a model placed in `inputs` rather than `goal` before discarding a task
+    # as empty — the description is there, just under the wrong key.
+    for item in draft.tasks:
+        if not (item.goal or "").strip():
+            recovered = item.inputs.get("query") or item.inputs.get("url") or item.inputs.get("goal")
+            if isinstance(recovered, str) and recovered.strip():
+                item.goal = recovered.strip()
+
     # Reserve a slot for the synthesis node so adding it cannot overflow the ceiling.
     limit = MAX_TASKS - 1 if draft.requires_synthesis else MAX_TASKS
     drafts = [d for d in draft.tasks if (d.goal or "").strip()][:limit]

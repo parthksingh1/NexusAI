@@ -14,7 +14,8 @@ import httpx
 import structlog
 from bs4 import BeautifulSoup
 
-from ..config import Settings, settings as default_settings
+from ..config import Settings
+from ..config import settings as default_settings
 from .schemas import SearchHit, SearchInput, SearchResult
 
 log = structlog.get_logger(__name__)

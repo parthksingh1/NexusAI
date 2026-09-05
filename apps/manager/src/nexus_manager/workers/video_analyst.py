@@ -32,12 +32,13 @@ _URL_RE = re.compile(r"https?://\S*(?:youtube\.com|youtu\.be)\S*")
 
 
 class KeyMoment(BaseModel):
-    ts: float = 0.0
-    text: str = ""
+    ts: float
+    text: str
 
 
 class VideoOutput(BaseModel):
-    summary: str = ""
+    # Required so the decoder cannot skip the field that carries the answer.
+    summary: str
     key_moments: list[KeyMoment] = Field(default_factory=list)
     action_items: list[str] = Field(default_factory=list)
 

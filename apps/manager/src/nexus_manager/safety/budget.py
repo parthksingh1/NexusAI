@@ -12,7 +12,8 @@ import threading
 import structlog
 from nexus_agents_shared import BudgetSnapshot
 
-from ..config import Settings, settings as default_settings
+from ..config import Settings
+from ..config import settings as default_settings
 from ..observability import metrics
 
 log = structlog.get_logger(__name__)

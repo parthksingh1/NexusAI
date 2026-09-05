@@ -14,7 +14,8 @@ import structlog
 from langgraph.graph import END, START, StateGraph
 from nexus_agents_shared import BudgetSnapshot, Plan, RunEvent, Task, WorkerResult
 
-from ..config import Provider, Settings, settings as default_settings
+from ..config import Provider, Settings
+from ..config import settings as default_settings
 from ..llm.router import LLMRouter
 from ..observability import metrics
 from ..safety.budget import BudgetExceeded, BudgetTracker

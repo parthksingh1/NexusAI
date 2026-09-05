@@ -112,20 +112,27 @@ Everything is **typed end-to-end**, **streamed over WebSockets**, and **horizont
 - Skill memory is recalled into system prompts on subsequent runs.
 
 ### Evaluation & regression gating
-- Named **suites** of test cases per agent, upserted idempotently from CI.
-- Ten **assertion types** — exact/contains/regex/JSON-path/numeric, latency and cost budgets,
-  embedding similarity, and rubric-based LLM-as-judge.
-- Targets an orchestrator **agent**, an arbitrary **HTTP** endpoint, or a free **echo** target.
-- **Regression gate** diffs a candidate run against a baseline and returns a ship / no-ship
-  verdict — any case that got worse blocks, even when the aggregate pass rate improved.
-
-### Evaluation & regression gating
 - Named **suites** of test cases per agent, upserted idempotently so CI can re-post them.
 - Ten **assertion types** — exact / contains / regex / JSON-path / numeric, latency and cost
   budgets, embedding similarity, and rubric-based LLM-as-judge.
 - Targets an orchestrator **agent**, an arbitrary **HTTP** endpoint, or a free **echo** target.
 - **Regression gate** diffs a candidate run against a baseline and returns a ship / no-ship
   verdict — any case that got worse blocks the change, even when the pass rate improved.
+
+### Manager (dynamic multi-agent)
+- Give a goal in plain language; a **planner** decomposes it into specialist tasks and a
+  **LangGraph** DAG executes them, running independent tasks concurrently.
+- Five worker types — **researcher**, **web scraper**, **video analyst**, **coder**,
+  **synthesizer** — each producing Pydantic-typed output with citations.
+- Runs on **Ollama locally at no cost**, or Claude, GPT or Gemini, chosen per run. The
+  router never falls back from local to a paid provider on its own.
+- **Budget caps enforced in code** — tokens, spend, agent count, depth, per-worker timeout.
+  A cap halts remaining work and still synthesises the partial results.
+- Web access respects **robots.txt**, rate-limits to one request per second per domain, and
+  refuses private and instance-metadata addresses.
+- Runs are **checkpointed in Postgres**, so an interrupted run resumes instead of restarting.
+- Live graph at `/manager` in the dashboard, `nexus run` from the CLI, SSE and WebSocket
+  streams from the API.
 
 ### Observability
 - **Prometheus** metrics on every service (counters, histograms, gauges).
@@ -196,9 +203,12 @@ nexusai/
 │   ├── orchestrator/  Fastify service — agents, tools, ReAct, auth, billing
 │   ├── rag/           Python FastAPI — hybrid RAG + connectors
 │   ├── evals/         Python FastAPI — agent eval suites + regression gates
+│   ├── manager/       Python FastAPI — goal planner + specialist agent graph
 │   ├── sandbox/       Docker sandbox runner (code execution)
 │   ├── realtime/      Real-time ingest + anomaly + alerts
 │   └── simulation/    Mock APIs for safe CI testing
+├── packages-py/
+│   └── nexus-agents-shared/  Pydantic contracts shared by the Python services
 ├── packages/
 │   ├── shared/        Shared TS types + Zod schemas + Kafka contracts
 │   ├── llm-router/    Multi-provider LLM routing

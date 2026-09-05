@@ -36,7 +36,7 @@ async def event_stream(bus, run_id: str, request: Request | None = None) -> Asyn
                 return
             try:
                 event = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_S)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 yield ": keep-alive\n\n"
                 continue
             if event is None:

@@ -13,7 +13,8 @@ from collections import defaultdict, deque
 import structlog
 from nexus_agents_shared import RunEvent, run_channel
 
-from ..config import Settings, settings as default_settings
+from ..config import Settings
+from ..config import settings as default_settings
 
 log = structlog.get_logger(__name__)
 

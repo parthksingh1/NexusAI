@@ -34,7 +34,8 @@ Rules:
 
 
 class SynthesisOutput(BaseModel):
-    answer: str = Field(default="")
+    # The answer is the entire point of this worker; it cannot be optional.
+    answer: str
     used_sources: list[int] = Field(default_factory=list)
     """1-based indices into the SOURCES list that the answer actually relies on."""
 

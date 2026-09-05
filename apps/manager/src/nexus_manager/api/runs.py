@@ -14,7 +14,8 @@ import time
 import structlog
 from nexus_agents_shared import Plan, RunEvent, RunResult, RunStatus
 
-from ..config import Provider, Settings, settings as default_settings
+from ..config import Provider, Settings
+from ..config import settings as default_settings
 from ..graph.builder import GraphRunner, execute_plan, resume_run
 from ..graph.streaming import EventBus
 from ..llm.router import LLMRouter

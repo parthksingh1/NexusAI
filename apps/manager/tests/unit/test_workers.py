@@ -58,7 +58,9 @@ class FakeLLM:
         self.calls += 1
         from nexus_manager.llm.models import ChatResponse, TokenUsage
 
-        value = self.structured.pop(0) if self.structured else response_model()
+        # model_construct bypasses validation: worker output models now require the fields
+        # that carry content, and a test that did not queue a value wants an empty stand-in.
+        value = self.structured.pop(0) if self.structured else response_model.model_construct()
         return value, ChatResponse(
             content="{}", usage=TokenUsage(prompt_tokens=100, completion_tokens=50),
             model="llama3:8b", provider="ollama", cost_usd=0.0,

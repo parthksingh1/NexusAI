@@ -11,6 +11,7 @@ volumes:
   neo4j_logs:
   clickhouse_data:
   kafka_data:
+  ollama_models:
 
 services:
   # ─── Postgres with pgvector ─────────────────────────────────
@@ -205,6 +206,58 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [nexus]
+
+  # ─── Ollama (free local models) ─────────────────────────────
+  ollama:
+    image: ollama/ollama:0.5.4
+    container_name: nexus-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    networks: [nexus]
+
+  # ─── Manager (dynamic multi-agent planner) ──────────────────
+  manager:
+    build:
+      context: .
+      dockerfile: apps/manager/Dockerfile
+    container_name: nexus-manager
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://nexus:nexus@postgres:5432/nexusai
+      REDIS_URL: redis://redis:6379/0
+      RAG_URL: http://rag:5000
+      SANDBOX_URL: http://host.docker.internal:4500
+      OLLAMA_HOST: http://ollama:11434
+      DEFAULT_LLM_PROVIDER: ${DEFAULT_LLM_PROVIDER:-ollama}
+      OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL:-llama3:8b}
+      OLLAMA_PLANNER_MODEL: ${OLLAMA_PLANNER_MODEL:-llama3:8b}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-nexus-manager}
+      MAX_TOTAL_TOKENS: ${MAX_TOTAL_TOKENS:-200000}
+      MAX_USD: ${MAX_USD:-1.00}
+      MAX_AGENTS_SPAWNED: ${MAX_AGENTS_SPAWNED:-8}
+      MAX_DEPTH: ${MAX_DEPTH:-2}
+      WORKER_TIMEOUT_S: ${WORKER_TIMEOUT_S:-90}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "4100:4100"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      ollama:
+        condition: service_started
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks: [nexus]

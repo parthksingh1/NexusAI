@@ -29,13 +29,16 @@ Rules:
 
 
 class Finding(BaseModel):
-    claim: str = Field(default="", max_length=600)
-    source: str = Field(default="")
+    # Required, not defaulted: a schema-constrained decoder treats a defaulted field as
+    # optional and omits it, which is how a worker ends up reporting success with nothing
+    # in it. Both fields carry the content, so both are mandatory.
+    claim: str = Field(..., max_length=600)
+    source: str
 
 
 class ResearchOutput(BaseModel):
+    summary: str
     findings: list[Finding] = Field(default_factory=list)
-    summary: str = ""
 
 
 class ResearcherWorker(BaseWorker):
@@ -107,12 +110,25 @@ class ResearcherWorker(BaseWorker):
         if not citations:
             citations = [url for url, _, _ in sources[:MAX_PAGES_READ] if url.startswith("http")]
 
+        summary = parsed.summary.strip()
+        if not summary and not findings:
+            # Sources were gathered but the model returned nothing about them. Reporting
+            # success here would hand the synthesizer an empty result and lose the run.
+            return WorkerResult(
+                ok=False,
+                output={"query": query, "sources_read": len(sources)},
+                citations=citations,
+                error=f"read {len(sources)} source(s) but produced no findings or summary",
+                tokens_used=tokens,
+                cost_usd=cost,
+            )
+
         return WorkerResult(
             ok=True,
             output={
                 "query": query,
                 "findings": [f.model_dump() for f in findings],
-                "summary": parsed.summary.strip(),
+                "summary": summary,
                 "sources_read": len(sources),
             },
             citations=citations,

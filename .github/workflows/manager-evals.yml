@@ -1,0 +1,105 @@
+name: Manager evals
+
+on:
+  schedule:
+    # Nightly, after the working day in most timezones.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Model provider to score against"
+        default: "ollama"
+        type: choice
+        options: [ollama, gemini, anthropic, openai]
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    name: Ragas regression gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: nexus
+          POSTGRES_PASSWORD: nexus
+          POSTGRES_DB: nexusai
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nexus -d nexusai"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the manager and its eval extras
+        working-directory: apps/manager
+        run: |
+          pip install --upgrade pip
+          pip install -e ../../packages-py/nexus-agents-shared
+          pip install -e ".[dev,evals]"
+          python -m playwright install --with-deps chromium
+
+      - name: Start Ollama and pull the models
+        if: ${{ (github.event.inputs.provider || 'ollama') == 'ollama' }}
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:11434/api/tags && break; sleep 2; done
+          ollama pull llama3.1:8b
+
+      # The dataset is scored against the previous run of the same scorer. Restoring history
+      # is what makes this a regression gate rather than an absolute threshold.
+      - name: Restore the previous scores
+        uses: actions/cache/restore@v4
+        with:
+          path: apps/manager/evals/history.json
+          key: manager-evals-history-${{ github.event.inputs.provider || 'ollama' }}
+          restore-keys: manager-evals-history-
+
+      - name: Score
+        working-directory: apps/manager
+        env:
+          DATABASE_URL: postgresql://nexus:nexus@localhost:5432/nexusai
+          REDIS_URL: redis://localhost:6379/0
+          OLLAMA_HOST: http://127.0.0.1:11434
+          OLLAMA_DEFAULT_MODEL: llama3.1:8b
+          OLLAMA_PLANNER_MODEL: llama3.1:8b
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+        run: |
+          python evals/run_ragas.py \
+            --provider "${{ github.event.inputs.provider || 'ollama' }}" \
+            --max-regression 0.05
+
+      - name: Save the scores for the next run
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: apps/manager/evals/history.json
+          key: manager-evals-history-${{ github.event.inputs.provider || 'ollama' }}-${{ github.run_id }}
+
+      - name: Publish the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manager-eval-results
+          path: |
+            apps/manager/evals/RESULTS.md
+            apps/manager/evals/history.json

@@ -8,8 +8,8 @@ from nexus_agents_shared import Plan, Task, TaskType
 from nexus_manager.config import Settings
 from nexus_manager.llm.router import LLMRouter
 from nexus_manager.planner.planner import PlanningError, new_task_id, plan, repair
-from nexus_manager.planner.schemas import PlanDraft, TaskDraft
 from nexus_manager.planner.prompts import system_prompt, user_prompt
+from nexus_manager.planner.schemas import PlanDraft, TaskDraft
 
 OLLAMA = "http://ollama.invalid:11434"
 

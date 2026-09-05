@@ -15,7 +15,8 @@ from dataclasses import dataclass, field
 import structlog
 from nexus_agents_shared import RunEvent, Task, WorkerResult
 
-from ..config import Provider, Settings, settings as default_settings
+from ..config import Provider, Settings
+from ..config import settings as default_settings
 from ..llm.models import LLMCallError, Message, ProviderUnavailable
 from ..llm.router import LLMRouter
 from ..observability import metrics
@@ -67,7 +68,7 @@ class BaseWorker(ABC):
 
         try:
             result = await asyncio.wait_for(self.run(task, ctx), timeout=ctx.settings.worker_timeout_s)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             result = WorkerResult(
                 ok=False, error=f"{self.name} exceeded the {ctx.settings.worker_timeout_s:.0f}s worker timeout"
             )

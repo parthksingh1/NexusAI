@@ -19,7 +19,8 @@ from typing import Any
 import structlog
 from pydantic import BaseModel, ValidationError
 
-from ..config import Settings, settings as default_settings
+from ..config import Settings
+from ..config import settings as default_settings
 from ..observability import metrics
 from ..safety.guards import RateLimiter, RobotsCache
 from .browse import browse
@@ -163,7 +164,7 @@ class ToolRegistry:
         for attempt in range(1, attempts + 1):
             try:
                 result = await asyncio.wait_for(self._tools[tool](**kwargs), timeout=timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 last_error = f"{tool} timed out after {timeout:.0f}s"
             except (TypeError, ValidationError) as exc:
                 # Wrong or malformed arguments will not improve on a retry.

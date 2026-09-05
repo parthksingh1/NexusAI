@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import structlog
 
-from ..config import Settings, settings as default_settings
+from ..config import Settings
+from ..config import settings as default_settings
 from ..safety.guards import RateLimiter, RobotsCache, URLBlocked, check_url
 from .fetch_url import extract_page
 from .schemas import BrowseInput, PageResult

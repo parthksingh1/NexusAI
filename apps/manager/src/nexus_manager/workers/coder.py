@@ -33,8 +33,9 @@ program. Change only what is needed to make it run and pass its own checks.
 
 
 class CodeOutput(BaseModel):
+    # Required: a defaulted field is skipped by a schema-constrained decoder.
+    code: str
     language: str = Field(default="python")
-    code: str = Field(default="")
     explanation: str = Field(default="")
 
 

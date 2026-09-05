@@ -48,8 +48,16 @@ class RunEvent(BaseModel):
     payload: dict = Field(default_factory=dict)
 
     def to_sse(self) -> str:
-        """Serialise as a Server-Sent Event frame."""
-        return f"event: {self.kind}\ndata: {self.model_dump_json()}\n\n"
+        """Serialise as a Server-Sent Event frame.
+
+        Deliberately unnamed. A frame carrying an `event:` line dispatches only to a
+        matching addEventListener and never fires EventSource.onmessage, so naming the
+        frame after its kind would silently deliver nothing to a consumer using onmessage —
+        which is exactly how the live graph in the web UI stopped updating. The payload
+        already carries `kind`, which is the real discriminator, and leaving frames unnamed
+        means a new kind never requires a change in the consumer.
+        """
+        return f"data: {self.model_dump_json()}\n\n"
 
 
 CHANNEL_PREFIX = "run"

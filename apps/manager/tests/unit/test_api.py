@@ -253,9 +253,18 @@ def test_websocket_reports_an_unknown_run_rather_than_hanging(client):
 # ─── Event framing ──────────────────────────────────────────────
 
 
-def test_events_serialise_as_sse_frames():
+def test_events_serialise_as_unnamed_sse_frames():
+    """Frames must stay unnamed.
+
+    A frame carrying an `event:` line dispatches only to a matching addEventListener and
+    never fires EventSource.onmessage. Naming frames after their kind silently delivered
+    nothing to the web UI, which is how the live graph stopped updating.
+    """
     event = RunEvent(run_id="r_1", kind="plan", payload={"a": 1})
     frame = event.to_sse()
-    assert frame.startswith("event: plan\ndata: ")
+    assert frame.startswith("data: ")
+    assert "event:" not in frame
     assert frame.endswith("\n\n")
-    assert json.loads(frame.split("data: ", 1)[1].strip())["run_id"] == "r_1"
+    body = json.loads(frame.split("data: ", 1)[1].strip())
+    assert body["run_id"] == "r_1"
+    assert body["kind"] == "plan"

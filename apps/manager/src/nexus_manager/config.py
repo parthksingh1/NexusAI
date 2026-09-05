@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     ollama_host: str = Field(default="http://127.0.0.1:11434", alias="OLLAMA_HOST")
     ollama_default_model: str = Field(default="llama3:8b", alias="OLLAMA_DEFAULT_MODEL")
     ollama_planner_model: str = Field(default="llama3:8b", alias="OLLAMA_PLANNER_MODEL")
+    # Local inference on CPU is slow; a structured plan can take minutes on a small model.
+    ollama_timeout_s: float = Field(default=600.0, alias="OLLAMA_TIMEOUT_S")
 
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")

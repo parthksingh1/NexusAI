@@ -79,6 +79,14 @@ class OllamaProvider(BaseProvider):
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(f"{self._host}{path}", json=payload)
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            raise ProviderUnavailable(f"Ollama at {self._host} is unreachable: {exc}") from exc
+        except httpx.ReadTimeout as exc:
+            model = payload.get("model")
+            raise LLMCallError(
+                f"Ollama model {model!r} did not respond within {timeout:.0f}s. On CPU-only hardware a "
+                f"large structured response can exceed this; use a smaller model or raise OLLAMA_TIMEOUT_S."
+            ) from exc
         except httpx.HTTPError as exc:
             raise ProviderUnavailable(f"Ollama at {self._host} is unreachable: {exc}") from exc
         if resp.status_code == 404:
@@ -90,14 +98,14 @@ class OllamaProvider(BaseProvider):
     async def chat(self, req: ChatRequest) -> ChatResponse:
         model = self.resolve_model(req)
         started = time.perf_counter()
-        data = await self._post("/api/chat", self._payload(req, model), timeout=180.0)
+        data = await self._post("/api/chat", self._payload(req, model), timeout=self._settings.ollama_timeout_s)
         return self._to_response(data, model, started)
 
     async def chat_structured(self, req: ChatRequest, response_model: type[T]) -> tuple[T, ChatResponse]:
         model = self.resolve_model(req)
         started = time.perf_counter()
         schema = response_model.model_json_schema()
-        data = await self._post("/api/chat", self._payload(req, model, fmt=schema), timeout=240.0)
+        data = await self._post("/api/chat", self._payload(req, model, fmt=schema), timeout=self._settings.ollama_timeout_s)
         response = self._to_response(data, model, started)
         try:
             parsed = response_model.model_validate_json(response.content)

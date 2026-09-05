@@ -3,9 +3,12 @@ import { Command } from "commander";
 import chalk from "chalk";
 import ora from "ora";
 import { NexusClient } from "@nexusai/sdk";
+import { registerRunCommand } from "./commands/run.js";
 
 const program = new Command();
 program.name("nexus").description("NexusAI CLI").version("0.1.0");
+
+registerRunCommand(program);
 
 function client(): NexusClient {
   return new NexusClient();

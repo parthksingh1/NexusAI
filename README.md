@@ -13,8 +13,9 @@ It is designed to be **run locally with a single `docker-compose up`** and **dep
 1. [What is NexusAI?](#what-is-nexusai)
 2. [Key Capabilities](#key-capabilities)
 3. [System Architecture](#system-architecture)
-4. [Repository Layout](#repository-layout)
-5. [Quick Start](#quick-start)
+4. [Screenshots](#screenshots)
+5. [Repository Layout](#repository-layout)
+6. [Quick Start](#quick-start)
 6. [Using NexusAI](#using-nexusai)
 7. [SDKs & CLI](#sdks--cli)
 8. [Deployment](#deployment)
@@ -191,6 +192,57 @@ Everything is **typed end-to-end**, **streamed over WebSockets**, and **horizont
 ```
 
 For a deep dive into component responsibilities, data flows, failure modes, and scaling strategies, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+
+---
+
+## Screenshots
+
+### Manager — a goal decomposed into a running agent graph
+
+Independent tasks share a row and execute concurrently; nodes move from waiting to running to
+complete as events arrive over SSE.
+
+![Manager](docs/screenshots/manager.png)
+
+### Overview
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Agents
+
+![Agents](docs/screenshots/agents.png)
+
+### Metrics — cost, latency and token volume
+
+![Metrics](docs/screenshots/metrics.png)
+
+### Playground
+
+![Playground](docs/screenshots/playground.png)
+
+### Live streams
+
+![Streams](docs/screenshots/streams.png)
+
+### Memory graph
+
+![Memory graph](docs/screenshots/memory-graph.png)
+
+### Knowledge base
+
+![Knowledge](docs/screenshots/knowledge.png)
+
+### Marketplace
+
+![Marketplace](docs/screenshots/marketplace.png)
+
+### Traces
+
+![Traces](docs/screenshots/traces.png)
+
+> Captured from the running application with `scripts/capture_screenshots.py`. Pages whose
+> backend service is not running render the seeded fixtures built into `apps/web/lib/api.ts`,
+> so the figures on those pages are illustrative rather than production data.
 
 ---
 
